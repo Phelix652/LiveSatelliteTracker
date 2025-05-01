@@ -4,7 +4,6 @@ from skyfield.api import load, EarthSatellite
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
-from matplotlib.patches import Polygon
 
 # Streamlit configuration
 st.set_page_config(layout="wide")
@@ -19,41 +18,29 @@ with col2:
     my_lon = st.number_input("Your Longitude", value=96.1735)
 
 # --- Fetch TLE Data Functions ---
-@st.cache_data(ttl=3600)
+@st.cache(ttl=3600)
 def get_tle_iss():
-    url = "https://celestrak.org/NORAD/elements/stations.txt"
-    lines = requests.get(url).text.strip().split("\n")
-    for i in range(0, len(lines), 3):
-        if "ISS (ZARYA)" in lines[i]:
-            return lines[i], lines[i+1], lines[i+2]
-    raise ValueError("ISS not found")
+    try:
+        url = "https://celestrak.org/NORAD/elements/stations.txt"
+        lines = requests.get(url).text.strip().split("\n")
+        for i in range(0, len(lines), 3):
+            if "ISS (ZARYA)" in lines[i]:
+                return lines[i], lines[i+1], lines[i+2]
+    except Exception as e:
+        st.error(f"Error fetching TLE for ISS: {e}")
+    return None
 
-@st.cache_data(ttl=3600)
+@st.cache(ttl=3600)
 def get_tle_noaa():
-    url = "https://celestrak.org/NORAD/elements/weather.txt"
-    lines = requests.get(url).text.strip().split("\n")
-    for i in range(0, len(lines), 3):
-        if "NOAA 15" in lines[i]:
-            return lines[i], lines[i+1], lines[i+2]
-    raise ValueError("NOAA 15 not found")
-
-@st.cache_data(ttl=3600)
-def get_tle_tianmu():
-    url = "https://celestrak.org/NORAD/elements/weather.txt"
-    lines = requests.get(url).text.strip().split("\n")
-    for i in range(0, len(lines), 3):
-        if "TIANMU-1 14" in lines[i]:
-            return lines[i], lines[i+1], lines[i+2]
-    raise ValueError("TIANMU-1 14 not found")
-
-@st.cache_data(ttl=3600)
-def get_tle_meteor():
-    url = "https://celestrak.org/NORAD/elements/weather.txt"
-    lines = requests.get(url).text.strip().split("\n")
-    for i in range(0, len(lines), 3):
-        if "METEOR-M 2 4" in lines[i] or "METEOR-M2 4" in lines[i]:
-            return lines[i], lines[i+1], lines[i+2]
-    raise ValueError("METEOR-M2 4 not found")
+    try:
+        url = "https://celestrak.org/NORAD/elements/weather.txt"
+        lines = requests.get(url).text.strip().split("\n")
+        for i in range(0, len(lines), 3):
+            if "NOAA 15" in lines[i]:
+                return lines[i], lines[i+1], lines[i+2]
+    except Exception as e:
+        st.error(f"Error fetching TLE for NOAA 15: {e}")
+    return None
 
 # --- Satellite data ---
 def get_satellite_data(satellite, ts):
@@ -81,21 +68,19 @@ def main():
     ts = load.timescale()
 
     # Load all satellites
-    name_iss, tle1_iss, tle2_iss = get_tle_iss()
-    name_noaa, tle1_noaa, tle2_noaa = get_tle_noaa()
-    name_tianmu, tle1_tianmu, tle2_tianmu = get_tle_tianmu()
-    name_meteor, tle1_meteor, tle2_meteor = get_tle_meteor()
+    name_iss, tle1_iss, tle2_iss = get_tle_iss() or (None, None, None)
+    name_noaa, tle1_noaa, tle2_noaa = get_tle_noaa() or (None, None, None)
+
+    if not name_iss or not name_noaa:
+        st.error("Error loading TLE data for satellites.")
+        return
 
     sat_iss = EarthSatellite(tle1_iss, tle2_iss, name_iss, ts)
     sat_noaa = EarthSatellite(tle1_noaa, tle2_noaa, name_noaa, ts)
-    sat_tianmu = EarthSatellite(tle1_tianmu, tle2_tianmu, name_tianmu, ts)
-    sat_meteor = EarthSatellite(tle1_meteor, tle2_meteor, name_meteor, ts)
 
     satellites = [
         {"sat": sat_iss, "color": "yellow"},
-        {"sat": sat_noaa, "color": "red"},
-        {"sat": sat_tianmu, "color": "magenta"},
-        {"sat": sat_meteor, "color": "lime"}
+        {"sat": sat_noaa, "color": "red"}
     ]
 
     fig, ax = plt.subplots(figsize=(12, 6))
