@@ -4,6 +4,7 @@ from skyfield.api import load, EarthSatellite
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
+from matplotlib.patches import Polygon
 
 # Streamlit configuration
 st.set_page_config(layout="wide")
